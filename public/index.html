@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Sous-titres</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Générateur de Sous-titres</h1>
+            <p>Ajoutez des sous-titres anglais à vos vidéos automatiquement</p>
+        </header>
+
+        <main>
+            <!-- Section d'upload -->
+            <section class="upload-section">
+                <div class="drop-zone" id="dropZone">
+                    <div class="upload-icon">📹</div>
+                    <h3>Glissez votre vidéo ici</h3>
+                    <p>ou cliquez pour sélectionner un fichier</p>
+                    <input type="file" id="videoFile" accept="video/*,audio/*" hidden>
+                    <div class="file-info">
+                        <small>Formats supportés: MP4, AVI, MOV, MKV, WEBM, MP3, WAV</small>
+                        <small>Aucune limite de taille</small>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section de traitement -->
+            <section class="processing-section" id="processingSection">
+                <div class="video-preview">
+                    <video id="videoPreview" controls></video>
+                    <div class="file-details" id="fileDetails"></div>
+                </div>
+                
+                <div class="controls">
+                    <div class="language-selector">
+                        <label for="sourceLanguage">Langue source:</label>
+                        <select id="sourceLanguage">
+                            <option value="auto">Détection automatique</option>
+                            <option value="en">Anglais (forcé)</option>
+                            <option value="fr">Français (forcé)</option>
+                            <option value="ru">Russe (forcé)</option>
+                            <option value="es">Espagnol (forcé)</option>
+                            <option value="de">Allemand (forcé)</option>
+                            <option value="it">Italien (forcé)</option>
+                            <option value="pt">Portugais (forcé)</option>
+                            <option value="zh">Chinois (forcé)</option>
+                            <option value="ja">Japonais (forcé)</option>
+                            <option value="ko">Coréen (forcé)</option>
+                            <option value="ar">Arabe (forcé)</option>
+                        </select>
+                        <small>⚠️ Forcer la langue réduit les hallucinations</small>
+                    </div>
+                    
+                    <div class="target-language-selector">
+                        <label for="targetLanguage">Langue cible:</label>
+                        <select id="targetLanguage">
+                            <option value="en">Anglais</option>
+                            <option value="fr">Français</option>
+                            <option value="es">Espagnol</option>
+                            <option value="de">Allemand</option>
+                            <option value="it">Italien</option>
+                            <option value="pt">Portugais</option>
+                            <option value="ru">Russe</option>
+                            <option value="zh">Chinois</option>
+                            <option value="ja">Japonais</option>
+                            <option value="ko">Coréen</option>
+                            <option value="ar">Arabe</option>
+                        </select>
+                    </div>
+                    
+                    <button id="generateBtn" class="btn-primary">
+                        Générer les sous-titres
+                    </button>
+                </div>
+            </section>
+
+            <!-- Section de progression -->
+            <section class="progress-section" id="progressSection">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Préparation...</div>
+                </div>
+                <div class="progress-steps">
+                    <div class="step" id="step1">
+                        <div class="step-icon">1</div>
+                        <span>Extraction audio</span>
+                    </div>
+                    <div class="step" id="step2">
+                        <div class="step-icon">2</div>
+                        <span>Transcription</span>
+                    </div>
+                    <div class="step" id="step3">
+                        <div class="step-icon">3</div>
+                        <span>Traduction</span>
+                    </div>
+                    <div class="step" id="step4">
+                        <div class="step-icon">4</div>
+                        <span>Finalisation</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section des résultats -->
+            <section class="results-section" id="resultsSection">
+                <div class="subtitles-preview">
+                    <div class="preview-header">
+                        <h3>Aperçu des sous-titres</h3>
+                        <div class="subtitle-stats" id="subtitleStats"></div>
+                    </div>
+                    <div class="subtitle-display" id="subtitleDisplay"></div>
+                </div>
+                
+                <div class="download-section">
+                    <h4>Télécharger les sous-titres</h4>
+                    <div class="download-buttons">
+                        <button id="downloadSrt" class="btn-secondary">
+                            📄 Télécharger SRT
+                        </button>
+                        <button id="downloadVtt" class="btn-secondary">
+                            📄 Télécharger VTT
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Section d'aide pour utiliser les sous-titres -->
+                <div class="help-section">
+                    <h4>💡 Comment utiliser vos sous-titres</h4>
+                    
+                    <div class="help-tabs">
+                        <button class="help-tab active" onclick="showHelpTab('vlc')">VLC Media Player</button>
+                        <button class="help-tab" onclick="showHelpTab('web')">Navigateur Web</button>
+                        <button class="help-tab" onclick="showHelpTab('youtube')">YouTube</button>
+                        <button class="help-tab" onclick="showHelpTab('formats')">Formats</button>
+                    </div>
+
+                    <div class="help-content">
+                        <!-- VLC Help -->
+                        <div id="help-vlc" class="help-panel active">
+                            <h5>🎬 VLC Media Player</h5>
+                            <div class="help-steps">
+                                <div class="help-step">
+                                    <span class="step-number">1</span>
+                                    <div class="step-content">
+                                        <strong>Ouvrir votre vidéo dans VLC</strong>
+                                        <p>Lancez VLC et ouvrez votre fichier vidéo</p>
+                                    </div>
+                                </div>
+                                <div class="help-step">
+                                    <span class="step-number">2</span>
+                                    <div class="step-content">
+                                        <strong>Ajouter les sous-titres</strong>
+                                        <p>Menu <strong>Sous-titres</strong> → <strong>Ajouter un fichier de sous-titres...</strong></p>
+                                        <p>Ou glissez directement le fichier .srt sur VLC</p>
+                                    </div>
+                                </div>
+                                <div class="help-step">
+                                    <span class="step-number">3</span>
+                                    <div class="step-content">
+                                        <strong>Sélectionner le fichier</strong>
+                                        <p>Choisissez le fichier <strong>.srt</strong> que vous avez téléchargé</p>
+                                    </div>
+                                </div>
+                                <div class="help-step">
+                                    <span class="step-number">4</span>
+                                    <div class="step-content">
+                                        <strong>Ajuster si nécessaire</strong>
+                                        <p>Menu <strong>Sous-titres</strong> → <strong>Délai des sous-titres</strong> pour synchroniser</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="help-tip">
+                                <strong>💡 Astuce :</strong> Pour que VLC charge automatiquement les sous-titres, 
+                                renommez le fichier .srt avec le même nom que votre vidéo et placez-les dans le même dossier.
+                            </div>
+                        </div>
+
+                        <!-- Web Help -->
+                        <div id="help-web" class="help-panel">
+                            <h5>🌐 Navigateur Web (HTML5)</h5>
+                            <div class="help-steps">
+                                <div class="help-step">
+                                    <span class="step-number">1</span>
+                                    <div class="step-content">
+                                        <strong>Utiliser le format VTT</strong>
+                                        <p>Les navigateurs supportent le format <strong>.vtt</strong> nativement</p>
+                                    </div>
+                                </div>
+                                <div class="help-step">
+                                    <span class="step-number">2</span>
+                                    <div class="step-content">
+                                        <strong>Code HTML exemple</strong>
+                                        <code>
+&lt;video controls&gt;<br>
+&nbsp;&nbsp;&lt;source src="video.mp4" type="video/mp4"&gt;<br>
+&nbsp;&nbsp;&lt;track src="subtitles.vtt" kind="subtitles" srclang="en" label="Français"&gt;<br>
+&lt;/video&gt;
+                                        </code>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- YouTube Help -->
+                        <div id="help-youtube" class="help-panel">
+                            <h5>📺 YouTube</h5>
+                            <div class="help-steps">
+                                <div class="help-step">
+                                    <span class="step-number">1</span>
+                                    <div class="step-content">
+                                        <strong>YouTube Studio</strong>
+                                        <p>Connectez-vous à <strong>studio.youtube.com</strong></p>
+                                    </div>
+                                </div>
+                                <div class="help-step">
+                                    <span class="step-number">2</span>
+                                    <div class="step-content">
+                                        <strong>Sélectionner votre vidéo</strong>
+                                        <p>Cliquez sur la vidéo à modifier</p>
+                                    </div>
+                                </div>
+                                <div class="help-step">
+                                    <span class="step-number">3</span>
+                                    <div class="step-content">
+                                        <strong>Sous-titres</strong>
+                                        <p>Menu <strong>Sous-titres</strong> → <strong>Ajouter</strong> → <strong>Importer un fichier</strong></p>
+                                    </div>
+                                </div>
+                                <div class="help-step">
+                                    <span class="step-number">4</span>
+                                    <div class="step-content">
+                                        <strong>Uploader le fichier</strong>
+                                        <p>Utilisez le fichier <strong>.srt</strong> téléchargé</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Formats Help -->
+                        <div id="help-formats" class="help-panel">
+                            <h5>📋 Formats disponibles</h5>
+                            <div class="format-comparison">
+                                <div class="format-card">
+                                    <h6>📄 SRT (SubRip)</h6>
+                                    <p><strong>Usage :</strong> VLC, lecteurs média, YouTube, édition vidéo</p>
+                                    <p><strong>Compatibilité :</strong> Universelle</p>
+                                    <p><strong>Avantages :</strong> Simple, largement supporté</p>
+                                </div>
+                                <div class="format-card">
+                                    <h6>🌐 VTT (WebVTT)</h6>
+                                    <p><strong>Usage :</strong> Navigateurs web, HTML5, streaming</p>
+                                    <p><strong>Compatibilité :</strong> Web native</p>
+                                    <p><strong>Avantages :</strong> Stylisation avancée, métadonnées</p>
+                                </div>
+                            </div>
+                            <div class="help-tip">
+                                <strong>🎯 Recommandation :</strong> 
+                                Utilisez <strong>SRT</strong> pour la plupart des cas (VLC, YouTube, édition). 
+                                Utilisez <strong>VTT</strong> pour les sites web et applications HTML5.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section d'erreur -->
+            <section class="error-section" id="errorSection">
+                <div class="error-message" id="errorMessage"></div>
+                <button id="retryBtn" class="btn-primary">Réessayer</button>
+            </section>
+        </main>
+
+        <footer>
+            <p>Générateur de sous-titres alimenté par OpenAI Whisper</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>
