@@ -11,7 +11,11 @@ const uploadRoutes = require('./routes/upload');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORRECTION 1: Configuration CORS plus stricte et spécifique
+// Protection globale contre les uploads en double
+const activeUploads = new Map();
+const uploadHistory = new Map();
+
+// Configuration CORS plus stricte et spécifique
 app.use(cors({
     origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
@@ -22,20 +26,20 @@ app.use(cors({
         'Content-Length', 
         'X-Requested-With',
         'Accept',
-        'Origin'
+        'Origin',
+        'Cache-Control'
     ],
     maxAge: 86400,
     optionsSuccessStatus: 200
 }));
 
-// CORRECTION 2: Middleware dans le bon ordre
-// D'abord les fichiers statiques
+// Fichiers statiques en premier
 app.use(express.static('public', {
     maxAge: '1d',
     etag: false
 }));
 
-// CORRECTION 3: Middleware pour gérer les requêtes multipart AVANT les parsers
+// Middleware pour gérer les requêtes multipart AVANT les parsers
 app.use((req, res, next) => {
     // Loguer toutes les requêtes pour debug
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -53,7 +57,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// CORRECTION 4: Parsers JSON/URL seulement pour les requêtes non-multipart
+// Parsers JSON/URL seulement pour les requêtes non-multipart
 app.use((req, res, next) => {
     const contentType = req.headers['content-type'] || '';
     
@@ -75,16 +79,14 @@ app.use((req, res, next) => {
     }
 });
 
-// CORRECTION 5: Middleware de protection contre les uploads en boucle
-const uploadProtection = new Map();
-
+// Middleware de protection contre les uploads en boucle
 app.use('/api/subtitles/generate', (req, res, next) => {
     const clientIP = req.ip || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'] || '';
     const clientKey = `${clientIP}-${userAgent}`;
     
     const now = Date.now();
-    const lastUpload = uploadProtection.get(clientKey);
+    const lastUpload = uploadHistory.get(clientKey);
     
     // Bloquer si upload récent (moins de 5 secondes)
     if (lastUpload && (now - lastUpload) < 5000) {
@@ -96,12 +98,12 @@ app.use('/api/subtitles/generate', (req, res, next) => {
     }
     
     // Enregistrer le timestamp
-    uploadProtection.set(clientKey, now);
+    uploadHistory.set(clientKey, now);
     
     // Nettoyer les anciennes entrées (plus de 1 minute)
-    for (const [key, timestamp] of uploadProtection.entries()) {
+    for (const [key, timestamp] of uploadHistory.entries()) {
         if (now - timestamp > 60000) {
-            uploadProtection.delete(key);
+            uploadHistory.delete(key);
         }
     }
     
@@ -123,7 +125,7 @@ const createDirectories = async () => {
     }
 };
 
-// CORRECTION 6: Routes avec logging amélioré
+// Routes avec logging amélioré
 app.use('/api/subtitles', (req, res, next) => {
     console.log(`🎯 Route subtitles: ${req.method} ${req.url}`);
     console.log(`📋 Content-Type: ${req.headers['content-type']}`);
@@ -142,7 +144,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// CORRECTION 7: Middleware de gestion d'erreurs amélioré
+// Middleware de gestion d'erreurs amélioré
 app.use((err, req, res, next) => {
     console.error(`💥 Erreur serveur: ${err.message}`);
     console.error(`📍 Route: ${req.method} ${req.url}`);
@@ -212,6 +214,7 @@ const startServer = async () => {
             console.log(`📊 Environnement: ${process.env.NODE_ENV || 'development'}`);
             console.log(`💾 Support des gros fichiers: ✅`);
             console.log(`🔐 Protection anti-spam: ✅`);
+            console.log(`📡 Server-Sent Events: ✅`);
             if (isConfigValid) {
                 console.log('🤖 OpenAI: ✅');
             } else {
@@ -220,7 +223,7 @@ const startServer = async () => {
             console.log('🎉 Serveur prêt !');
         });
 
-        // CORRECTION 8: Configuration serveur pour gros fichiers
+        // Configuration serveur pour gros fichiers et SSE
         server.timeout = 0; // Désactiver timeout global
         server.keepAliveTimeout = 300000; // 5 minutes
         server.headersTimeout = 310000; // 5 minutes + 10s
@@ -257,7 +260,7 @@ startServer().catch((error) => {
     process.exit(1);
 });
 
-// CORRECTION 9: Gestion propre de l'arrêt
+// Gestion propre de l'arrêt
 process.on('SIGINT', async () => {
     console.log('\n🛑 Arrêt du serveur...');
     
@@ -272,8 +275,15 @@ process.on('SIGINT', async () => {
         }
         
         // Nettoyer la protection upload
-        uploadProtection.clear();
+        activeUploads.clear();
+        uploadHistory.clear();
         console.log('✅ Protection upload nettoyée');
+        
+        // Nettoyer les jobs de progression
+        if (global.jobProgresses) {
+            delete global.jobProgresses;
+            console.log('✅ Jobs de progression nettoyés');
+        }
         
     } catch (error) {
         console.error('❌ Erreur lors du nettoyage:', error);
@@ -298,3 +308,6 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('💥 Rejection non gérée à:', promise, 'raison:', reason);
     process.exit(1);
 });
+
+// Exporter pour les tests
+module.exports = app;
